@@ -1,29 +1,37 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Spotify Web Player</title>
+  <title>Spotify Web Player + Audio Metadata</title>
+
   <style>
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+        Roboto, Helvetica, Arial, sans-serif;
       background: #121212;
       color: #FFFFFF;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      height: 100vh;
+      min-height: 100vh;
       margin: 0;
+      padding: 30px 12px;
+      box-sizing: border-box;
     }
+
     .card {
       background: #181818;
-      padding: 30px;
+      padding: 25px;
       border-radius: 12px;
       box-shadow: 0 8px 24px rgba(0,0,0,0.5);
       text-align: center;
-      width: 320px;
+      width: min(420px, 100%);
+      box-sizing: border-box;
+      margin: auto 0;
     }
+
     button {
       background: #1DB954;
       color: white;
@@ -34,162 +42,596 @@
       cursor: pointer;
       font-size: 16px;
       margin-top: 15px;
-      transition: transform 0.2s, background 0.2s;
     }
-    button:hover {
-      background: #1ed760;
-      transform: scale(1.03);
-    }
+
+    button:hover { background: #1ed760; }
+
     #album-art {
       width: 200px;
       height: 200px;
+      object-fit: cover;
       border-radius: 8px;
       margin-bottom: 15px;
       display: none;
     }
+
     .hidden { display: none; }
+
+    #metadata {
+      text-align: left;
+      margin-top: 25px;
+      border-top: 1px solid #333;
+      padding-top: 15px;
+    }
+
+    #metadata h4 {
+      margin-bottom: 10px;
+      color: #1DB954;
+    }
+
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 7px 0;
+      border-bottom: 1px solid #292929;
+      font-size: 13px;
+    }
+
+    .meta-label { color: #b3b3b3; }
+    .meta-value {
+      text-align: right;
+      overflow-wrap: anywhere;
+      max-width: 65%;
+    }
+
+    #api-status {
+      font-size: 12px;
+      color: #b3b3b3;
+      text-align: left;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      margin-top: 16px;
+    }
+
+    a { color: #1DB954; }
   </style>
 </head>
-<body>
 
+<body>
   <div class="card">
     <div id="login-section">
       <h2>Spotify Web Player</h2>
-      <p style="color: #b3b3b3; font-size: 14px;">Connect your Spotify Premium account to stream.</p>
+      <p style="color:#b3b3b3;font-size:14px;">
+        Connect your Spotify Premium account to stream.
+      </p>
       <button id="login-btn">Log In with Spotify</button>
     </div>
 
     <div id="player-section" class="hidden">
-      <img id="album-art" src="" alt="Album Art" />
-      <h3 id="track-title" style="margin: 5px 0;">Connecting...</h3>
-      <p id="artist-name" style="color: #b3b3b3; margin-top: 0;"></p>
+      <img id="album-art" src="" alt="Album Art"/>
+      <h3 id="track-title">Connecting...</h3>
+      <p id="artist-name" style="color:#b3b3b3;"></p>
       <button id="play-btn">Pause</button>
+
+      <div id="metadata">
+        <h4>Track metadata</h4>
+        <div id="metadata-rows">
+          <p style="color:#b3b3b3;font-size:13px;">
+            Play a track to inspect its metadata.
+          </p>
+        </div>
+        <div id="api-status">Waiting for track...</div>
+      </div>
     </div>
   </div>
-  
+
   <p><a href="https://getsongbpm.com/">Powered by GetSongBPM</a></p>
 
-  <!-- Spotify Web Playback SDK -->
   <script src="https://sdk.scdn.co/spotify-player.js"></script>
+
   <script>
     // ----------------------------------------------------
-    // CONFIGURATION (Safe to publish on GitHub Pages)
+    // CONFIGURATION
     // ----------------------------------------------------
-    const CLIENT_ID = 'dfa533786a314dafb7162df161a885fd'; // Replace with your Client ID
-    const REDIRECT_URI = window.location.origin + window.location.pathname;
-    const SCOPES = 'streaming user-read-email user-read-private user-modify-playback-state';
+    const CLIENT_ID = 'dfa533786a314dafb7162df161a885fd';
+    const REDIRECT_URI =
+      window.location.origin + window.location.pathname;
+
+    const SCOPES =
+      'streaming user-read-email user-read-private ' +
+      'user-modify-playback-state';
 
     let player;
     let deviceId;
+    let currentTrackId = null;
+    let metadataRequestNumber = 0;
 
-    // 1. PKCE Helper Functions (Cryptographic Security)
+    // ----------------------------------------------------
+    // PKCE AUTHENTICATION
+    // ----------------------------------------------------
     function generateRandomString(length) {
-      const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      const possible =
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+
       const values = crypto.getRandomValues(new Uint8Array(length));
-      return values.reduce((acc, x) => acc + possible[x % possible.length], "");
+
+      return values.reduce(
+        (acc, x) => acc + possible[x % possible.length], ''
+      );
     }
 
-    async function generateCodeChallenge(codeVerifier) {
-      const data = new TextEncoder().encode(codeVerifier);
-      const digest = await window.crypto.subtle.digest('SHA-256', data);
-      return btoa(String.fromCharCode.apply(null, new Uint8Array(digest)))
-        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    async function generateCodeChallenge(verifier) {
+      const data = new TextEncoder().encode(verifier);
+      const digest = await crypto.subtle.digest('SHA-256', data);
+
+      return btoa(String.fromCharCode(...new Uint8Array(digest)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
     }
 
-    // 2. Auth Flow: Redirect to Spotify
-    document.getElementById('login-btn').addEventListener('click', async () => {
-      const verifier = generateRandomString(64);
-      const challenge = await generateCodeChallenge(verifier);
-      localStorage.setItem('code_verifier', verifier);
+    document.getElementById('login-btn').addEventListener(
+      'click', async () => {
+        const verifier = generateRandomString(64);
+        const challenge = await generateCodeChallenge(verifier);
 
-      const params = new URLSearchParams({
-        client_id: CLIENT_ID,
-        response_type: 'code',
-        redirect_uri: REDIRECT_URI,
-        scope: SCOPES,
-        code_challenge_method: 'S256',
-        code_challenge: challenge,
-      });
+        localStorage.setItem('code_verifier', verifier);
 
-      window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
-    });
+        const params = new URLSearchParams({
+          client_id: CLIENT_ID,
+          response_type: 'code',
+          redirect_uri: REDIRECT_URI,
+          scope: SCOPES,
+          code_challenge_method: 'S256',
+          code_challenge: challenge
+        });
 
-    // 3. Auth Flow: Handle Token Exchange after Callback
+        window.location.href =
+          `https://accounts.spotify.com/authorize?${params}`;
+      }
+    );
+
     async function handleAuthCallback() {
       const urlParams = new URLSearchParams(window.location.search);
       const code = urlParams.get('code');
 
+      if (urlParams.has('error')) {
+        showStatus(`Spotify login error: ${urlParams.get('error')}`);
+        return;
+      }
+
       if (code) {
         const verifier = localStorage.getItem('code_verifier');
+
+        if (!verifier) {
+          showStatus('Login failed: PKCE verifier was not found.');
+          return;
+        }
+
         const params = new URLSearchParams({
           client_id: CLIENT_ID,
           grant_type: 'authorization_code',
-          code: code,
+          code,
           redirect_uri: REDIRECT_URI,
-          code_verifier: verifier,
+          code_verifier: verifier
         });
 
-        const response = await fetch('https://accounts.spotify.com/api/token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: params
-        });
+        try {
+          const response = await fetch(
+            'https://accounts.spotify.com/api/token',
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+              },
+              body: params
+            }
+          );
 
-        const data = await response.json();
-        if (data.access_token) {
-          localStorage.setItem('spotify_access_token', data.access_token);
-          window.history.replaceState({}, document.title, window.location.pathname); // Clean URL
+          const data = await response.json();
+
+          if (!response.ok || !data.access_token) {
+            throw new Error(
+              data.error_description || data.error || response.status
+            );
+          }
+
+          localStorage.setItem(
+            'spotify_access_token', data.access_token
+          );
+
+          // Remember expiration for a later refresh.
+          localStorage.setItem(
+            'spotify_expires_at',
+            String(Date.now() + data.expires_in * 1000)
+          );
+
+          localStorage.removeItem('code_verifier');
+
+          window.history.replaceState(
+            {}, document.title, window.location.pathname
+          );
+
           initPlayer(data.access_token);
+        } catch (error) {
+          showStatus(`Authentication failed: ${error.message}`);
         }
-      } else if (localStorage.getItem('spotify_access_token')) {
-        initPlayer(localStorage.getItem('spotify_access_token'));
+      } else {
+        const token = localStorage.getItem('spotify_access_token');
+        const expiry = Number(
+          localStorage.getItem('spotify_expires_at') || 0
+        );
+
+        if (token && Date.now() < expiry - 60000) {
+          initPlayer(token);
+        } else {
+          localStorage.removeItem('spotify_access_token');
+          document.getElementById('login-section')
+            .classList.remove('hidden');
+        }
       }
     }
 
-    // 4. Initialize Web Playback SDK
-    function initPlayer(token) {
-      document.getElementById('login-section').classList.add('hidden');
-      document.getElementById('player-section').classList.remove('hidden');
+    // ----------------------------------------------------
+    // SPOTIFY API HELPER
+    // ----------------------------------------------------
+    async function spotifyGet(endpoint) {
+      const token = localStorage.getItem('spotify_access_token');
 
-      window.onSpotifyWebPlaybackSDKReady = () => {
-        player = new Spotify.Player({
-          name: 'GitHub Web Player',
-          getOAuthToken: cb => { cb(token); },
-          volume: 0.8
-        });
+      const response = await fetch(
+        `https://api.spotify.com/v1/${endpoint}`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
 
-        player.addListener('ready', ({ device_id }) => {
-          console.log('Ready with Device ID', device_id);
-          deviceId = device_id;
-          document.getElementById('track-title').innerText = 'Ready to Stream';
-          document.getElementById('artist-name').innerText = 'Select this player in Spotify App or click Play';
-        });
+      const rawText = await response.text();
+      let data;
 
-        player.addListener('player_state_changed', state => {
-          if (!state) return;
-          const track = state.track_window.current_track;
-          document.getElementById('track-title').innerText = track.name;
-          document.getElementById('artist-name').innerText = track.artists.map(a => a.name).join(', ');
-          
-          const albumImg = track.album.images[0]?.url;
-          if (albumImg) {
-            const imgEl = document.getElementById('album-art');
-            imgEl.src = albumImg;
-            imgEl.style.display = 'block';
-          }
+      try {
+        data = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        data = { message: rawText };
+      }
 
-          document.getElementById('play-btn').innerText = state.paused ? 'Play' : 'Pause';
-        });
+      if (!response.ok) {
+        const error = new Error(
+          data?.error?.message ||
+          data?.message ||
+          `HTTP ${response.status}`
+        );
 
-        player.connect();
-      };
+        error.status = response.status;
+        throw error;
+      }
+
+      return data;
     }
 
-    document.getElementById('play-btn').addEventListener('click', () => {
-      if (player) player.togglePlay();
-    });
+    // ----------------------------------------------------
+    // METADATA DISPLAY HELPERS
+    // ----------------------------------------------------
+    function showStatus(message) {
+      document.getElementById('api-status').textContent = message;
+    }
 
-    handleAuthCallback();
+    function formatDuration(ms) {
+      if (ms == null) return null;
+
+      const seconds = Math.floor(ms / 1000);
+      return `${Math.floor(seconds / 60)}:${String(
+        seconds % 60
+      ).padStart(2, '0')}`;
+    }
+
+    function formatKey(key, mode) {
+      if (key == null || key < 0) return null;
+
+      const names = [
+        'C', 'C♯/D♭', 'D', 'D♯/E♭', 'E', 'F',
+        'F♯/G♭', 'G', 'G♯/A♭', 'A', 'A♯/B♭', 'B'
+      ];
+
+      const scale = mode === 1 ? 'Major' :
+                    mode === 0 ? 'Minor' : 'Unknown mode';
+
+      return `${names[key]} (${scale})`;
+    }
+
+    function addRow(container, label, value) {
+      if (value === null || value === undefined || value === '') {
+        value = 'Unavailable';
+      }
+
+      const row = document.createElement('div');
+      row.className = 'meta-row';
+
+      const left = document.createElement('span');
+      left.className = 'meta-label';
+      left.textContent = label;
+
+      const right = document.createElement('span');
+      right.className = 'meta-value';
+      right.textContent = String(value);
+
+      row.append(left, right);
+      container.appendChild(row);
+    }
+
+    function addLinkRow(container, label, url, linkText) {
+      const row = document.createElement('div');
+      row.className = 'meta-row';
+
+      const left = document.createElement('span');
+      left.className = 'meta-label';
+      left.textContent = label;
+
+      const right = document.createElement('a');
+      right.className = 'meta-value';
+      right.href = url;
+      right.target = '_blank';
+      right.rel = 'noopener noreferrer';
+      right.textContent = linkText;
+
+      row.append(left, right);
+      container.appendChild(row);
+    }
+
+    // ----------------------------------------------------
+    // TRACK METADATA
+    // ----------------------------------------------------
+    async function loadMetadata(track) {
+      if (!track?.id || track.id === currentTrackId) return;
+
+      currentTrackId = track.id;
+      const requestNumber = ++metadataRequestNumber;
+
+      const rows = document.getElementById('metadata-rows');
+      rows.replaceChildren();
+
+      const statusLines = [];
+      showStatus('Requesting track metadata...');
+
+      const isCurrent = () =>
+        requestNumber === metadataRequestNumber;
+
+      // Display information already provided by the Playback SDK.
+      addRow(rows, 'Spotify track ID', track.id);
+      addRow(rows, 'Artists', track.artists.map(a => a.name).join(', '));
+      addRow(rows, 'Album', track.album?.name);
+      addRow(rows, 'Duration', formatDuration(track.duration_ms));
+      addLinkRow(
+        rows,
+        'Open in Spotify',
+        track.uri || `https://open.spotify.com/track/${track.id}`,
+        'View track'
+      );
+
+      // Attempt the endpoints independently.
+      const results = await Promise.allSettled([
+        spotifyGet(`tracks/${track.id}`),
+        spotifyGet(`audio-features/${track.id}`),
+        spotifyGet(`audio-analysis/${track.id}`)
+      ]);
+
+      if (!isCurrent()) return;
+
+      const [catalogResult, featuresResult, analysisResult] = results;
+
+      function reportResult(name, result) {
+        if (result.status === 'fulfilled') {
+          statusLines.push(`${name}: HTTP 200`);
+        } else {
+          const error = result.reason;
+          statusLines.push(
+            `${name}: ${error.status || 'Network error'} — ${error.message}`
+          );
+        }
+      }
+
+      reportResult('Track catalog', catalogResult);
+      reportResult('Audio Features', featuresResult);
+      reportResult('Audio Analysis', analysisResult);
+
+      const catalog =
+        catalogResult.status === 'fulfilled'
+          ? catalogResult.value : null;
+
+      const features =
+        featuresResult.status === 'fulfilled'
+          ? featuresResult.value : null;
+
+      const analysis =
+        analysisResult.status === 'fulfilled'
+          ? analysisResult.value : null;
+
+      if (catalog) {
+        addRow(rows, 'Release date', catalog.album?.release_date);
+        addRow(rows, 'Album type', catalog.album?.album_type);
+        addRow(rows, 'Track number', catalog.track_number);
+        addRow(rows, 'Disc number', catalog.disc_number);
+        addRow(rows, 'Explicit', catalog.explicit == null
+          ? null : catalog.explicit ? 'Yes' : 'No');
+        addRow(rows, 'Popularity', catalog.popularity);
+        addRow(rows, 'ISRC', catalog.external_ids?.isrc);
+      }
+
+      if (features) {
+        addRow(rows, 'BPM / Tempo', features.tempo == null
+          ? null : `${features.tempo} BPM`);
+        addRow(rows, 'Danceability', features.danceability);
+        addRow(rows, 'Energy', features.energy);
+        addRow(rows, 'Valence / Mood', features.valence);
+        addRow(rows, 'Acousticness', features.acousticness);
+        addRow(rows, 'Instrumentalness', features.instrumentalness);
+        addRow(rows, 'Speechiness', features.speechiness);
+        addRow(rows, 'Liveness', features.liveness);
+        addRow(rows, 'Loudness', features.loudness == null
+          ? null : `${features.loudness} dB`);
+        addRow(rows, 'Musical key', formatKey(
+          features.key, features.mode
+        ));
+        addRow(rows, 'Time signature', features.time_signature == null
+          ? null : `${features.time_signature}/4`);
+      }
+
+      if (analysis) {
+        addRow(rows, 'Analysis duration', formatDuration(
+          analysis.track?.duration
+            ? analysis.track.duration * 1000 : null
+        ));
+
+        addRow(rows, 'Beats detected', analysis.beats?.length);
+        addRow(rows, 'Bars detected', analysis.bars?.length);
+        addRow(rows, 'Sections detected', analysis.sections?.length);
+        addRow(rows, 'Segments detected', analysis.segments?.length);
+
+        const firstBeat = analysis.beats?.[0];
+        if (firstBeat) {
+          addRow(rows, 'First beat timestamp',
+            `${firstBeat.start.toFixed(3)} s`);
+          addRow(rows, 'First beat confidence',
+            firstBeat.confidence);
+        }
+
+        const firstSection = analysis.sections?.[0];
+        if (firstSection) {
+          addRow(rows, 'First section tempo',
+            firstSection.tempo == null
+              ? null : `${firstSection.tempo} BPM`);
+          addRow(rows, 'First section key',
+            formatKey(firstSection.key, firstSection.mode));
+        }
+      }
+
+      // Artist genres: try separately so catalog/feature failures
+      // don't prevent this additional lookup.
+      const artistId = track.artists?.[0]?.id;
+
+      if (artistId) {
+        try {
+          const artist = await spotifyGet(`artists/${artistId}`);
+          if (!isCurrent()) return;
+
+          addRow(rows, 'Artist genres',
+            artist.genres?.length
+              ? artist.genres.join(', ')
+              : 'No genres returned');
+
+          statusLines.push('Artist details: HTTP 200');
+        } catch (error) {
+          statusLines.push(
+            `Artist details: ${error.status || 'Network error'} — ${error.message}`
+          );
+          if (isCurrent()) addRow(rows, 'Artist genres', null);
+        }
+      }
+
+      if (isCurrent()) {
+        showStatus(statusLines.join('\n'));
+        console.log('Spotify metadata results', {
+          trackId: track.id,
+          catalog,
+          features,
+          analysis,
+          status: statusLines
+        });
+      }
+    }
+
+    // ----------------------------------------------------
+    // PLAYER INITIALIZATION
+    // ----------------------------------------------------
+    window.onSpotifyWebPlaybackSDKReady = () => {
+      const token = localStorage.getItem('spotify_access_token');
+      if (token) initPlayer(token);
+    };
+
+    function initPlayer(token) {
+      if (player) return;
+
+      document.getElementById('login-section')
+        .classList.add('hidden');
+      document.getElementById('player-section')
+        .classList.remove('hidden');
+
+      player = new Spotify.Player({
+        name: 'GitHub Web Player',
+        getOAuthToken: cb => cb(
+          localStorage.getItem('spotify_access_token') || token
+        ),
+        volume: 0.8
+      });
+
+      player.addListener('ready', ({ device_id }) => {
+        deviceId = device_id;
+        document.getElementById('track-title').textContent =
+          'Ready to Stream';
+        document.getElementById('artist-name').textContent =
+          'Select this player in the Spotify app.';
+      });
+
+      player.addListener('not_ready', ({ device_id }) => {
+        console.warn('Spotify device offline:', device_id);
+      });
+
+      player.addListener('initialization_error', ({ message }) => {
+        showStatus(`Player initialization error: ${message}`);
+      });
+
+      player.addListener('authentication_error', ({ message }) => {
+        showStatus(`Player authentication error: ${message}`);
+      });
+
+      player.addListener('account_error', ({ message }) => {
+        showStatus(`Spotify account error: ${message}`);
+      });
+
+      player.addListener('player_state_changed', state => {
+        if (!state) return;
+
+        const track = state.track_window.current_track;
+
+        document.getElementById('track-title').textContent = track.name;
+        document.getElementById('artist-name').textContent =
+          track.artists.map(a => a.name).join(', ');
+
+        const albumImg = track.album?.images?.[0]?.url;
+        const imgEl = document.getElementById('album-art');
+
+        if (albumImg) {
+          imgEl.src = albumImg;
+          imgEl.style.display = 'block';
+        }
+
+        document.getElementById('play-btn').textContent =
+          state.paused ? 'Play' : 'Pause';
+
+        loadMetadata(track).catch(error => {
+          console.error('Metadata loading failed:', error);
+          showStatus(`Metadata error: ${error.message}`);
+        });
+      });
+
+      player.connect();
+    }
+
+    document.getElementById('play-btn').addEventListener(
+      'click', async () => {
+        if (player) {
+          const result = await player.togglePlay();
+          // The player_state_changed event updates the button.
+        }
+      }
+    );
+
+    // Avoid initializing twice if the SDK callback fires after
+    // the auth callback has already initialized the player.
+    handleAuthCallback().catch(error => {
+      console.error(error);
+      showStatus(`Startup error: ${error.message}`);
+    });
   </script>
 </body>
 </html>
