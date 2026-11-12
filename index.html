@@ -6,14 +6,18 @@
   <title>8-Track Mystery Box</title>
   <style>
     :root {
-      --bg: #121212;
-      --surface: #181818;
-      --surface-alt: #222222;
-      --border: #2e2e2e;
-      --accent: #1DB954;
-      --accent-hover: #1ed760;
-      --text: #ffffff;
-      --muted: #b3b3b3;
+      --bg-base: #000000;
+      --bg-canvas: #121212;
+      --bg-elevated: #181818;
+      --bg-highlight: #242424;
+      --bg-press: #2a2a2a;
+      --accent: #1ed760;
+      --accent-hover: #3be477;
+      --text-base: #ffffff;
+      --text-subdued: #a7a7a7;
+      --radius-lg: 12px;
+      --radius-md: 8px;
+      --radius-pill: 9999px;
     }
 
     * { box-sizing: border-box; }
@@ -21,65 +25,122 @@
     body {
       margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
+      background: var(--bg-base);
+      color: var(--text-base);
+      height: 100dvh;
       display: flex;
       flex-direction: column;
+      overflow: hidden; /* Locks desktop to 1 screen, zero scroll */
+      padding: 8px 8px 0;
+      gap: 8px;
     }
 
+    @media (max-width: 768px) {
+      body {
+        height: auto;
+        min-height: 100dvh;
+        overflow-y: auto;
+        padding: 0;
+        gap: 0;
+      }
+    }
+
+    /* Buttons (Spotify Pill Style) */
     button {
       background: var(--accent);
-      color: #000;
+      color: #000000;
       border: none;
-      padding: 9px 16px;
-      border-radius: 50px;
+      padding: 10px 20px;
+      border-radius: var(--radius-pill);
       font-weight: 700;
       font-size: 13px;
+      letter-spacing: 0.2px;
       cursor: pointer;
+      transition: transform 0.12s ease, background-color 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
     }
-    button:hover { background: var(--accent-hover); }
-    button:disabled { background: #3a3a3a; color: #777; cursor: not-allowed; }
-    button.secondary {
-      background: transparent;
-      color: var(--text);
-      border: 1px solid var(--border);
+    button:hover:not(:disabled) {
+      background: var(--accent-hover);
+      transform: scale(1.03);
     }
-    button.secondary:hover { background: var(--surface-alt); }
+    button:active:not(:disabled) { transform: scale(0.98); }
+    button:disabled {
+      background: var(--bg-highlight);
+      color: #6a6a6a;
+      cursor: not-allowed;
+    }
 
+    button.ghost {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-base);
+    }
+    button.ghost:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    /* Inputs (Borderless Tonal Fields) */
     input, textarea {
       width: 100%;
-      background: #121212;
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 8px 10px;
-      border-radius: 6px;
+      background: var(--bg-highlight);
+      border: 1px solid transparent;
+      color: var(--text-base);
+      padding: 9px 12px;
+      border-radius: var(--radius-md);
       font-family: inherit;
       font-size: 13px;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
     }
-    input:focus, textarea:focus { outline: 1px solid var(--accent); }
+    input::placeholder, textarea::placeholder { color: #727272; }
+    input:hover, textarea:hover { background: var(--bg-press); }
+    input:focus, textarea:focus {
+      outline: none;
+      background: var(--bg-press);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
 
     .hidden { display: none !important; }
 
-    /* Top Bar */
+    /* Main Rounded Canvas (Matches Spotify Desktop Panel) */
+    .app-shell {
+      flex: 1;
+      background: linear-gradient(180deg, #1f1f1f 0%, var(--bg-canvas) 220px);
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      padding: 16px 20px;
+      min-height: 0;
+    }
+
+    @media (max-width: 768px) {
+      .app-shell {
+        border-radius: 0;
+        padding: 16px 14px 96px;
+      }
+    }
+
+    /* Header */
     header {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
-      padding: 12px 20px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
+      gap: 12px;
+      margin-bottom: 14px;
+      flex-shrink: 0;
     }
     .header-left h1 {
       margin: 0;
-      font-size: 1.15rem;
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: -0.4px;
     }
     .header-left p {
-      margin: 2px 0 0;
-      font-size: 12px;
-      color: var(--muted);
+      margin: 3px 0 0;
+      font-size: 13px;
+      color: var(--text-subdued);
     }
     .header-actions {
       display: flex;
@@ -88,136 +149,183 @@
       flex-wrap: wrap;
     }
 
-    /* Main Workspace */
-    main {
-      flex: 1;
-      padding: 14px 20px 84px; /* space for bottom player */
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* Curator Top Meta Bar */
+    /* Curator Subject Bar */
     .curator-meta {
       display: flex;
-      gap: 10px;
+      align-items: center;
+      gap: 12px;
       margin-bottom: 12px;
-      flex-wrap: wrap;
+      flex-shrink: 0;
     }
-    .curator-meta input { max-width: 340px; }
+    .curator-meta input {
+      max-width: 380px;
+      border-radius: var(--radius-pill);
+      padding: 9px 16px;
+      font-weight: 600;
+    }
+    #status-text {
+      font-size: 12px;
+      color: var(--accent);
+      font-weight: 600;
+    }
 
     /* =========================================================
-       RESPONSIVE 8-SLOT GRID
-       Desktop: 4 columns x 2 rows (fits 100vh with no scroll)
-       Mobile:  2 columns x 4 rows (8 items total, 2 per row)
+       8-SLOT GRID
+       Desktop: 4 columns x 2 rows (fits 100dvh, zero scroll)
+       Mobile:  2 columns x 4 rows (8 cards total, 2 per row)
        ========================================================= */
     .grid-8 {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       grid-template-rows: repeat(2, 1fr);
-      gap: 12px;
+      gap: 14px;
       flex: 1;
+      min-height: 0;
     }
 
     @media (max-width: 768px) {
       .grid-8 {
         grid-template-columns: repeat(2, 1fr);
         grid-template-rows: auto;
+        gap: 10px;
       }
-      main { padding: 12px 12px 90px; }
     }
 
-    /* Card Styles */
+    /* Spotify Elevated Cards */
     .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 12px;
+      background: var(--bg-elevated);
+      border-radius: var(--radius-lg);
+      padding: 14px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      transition: background-color 0.2s ease, transform 0.15s ease;
+      min-height: 0;
       position: relative;
-      overflow: hidden;
     }
+    .card:hover { background: var(--bg-highlight); }
+
     .card.active {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 1px var(--accent);
+      background: #232b26;
+      box-shadow: inset 0 0 0 1.5px var(--accent);
     }
 
-    /* Listener Sealed Card */
+    /* Listener: Sealed Mystery Card */
     .sealed-card {
       align-items: center;
       justify-content: center;
       text-align: center;
       cursor: pointer;
-      background: linear-gradient(145deg, #1b1b1b, #141414);
+      background: radial-gradient(circle at top, #242424 0%, #181818 100%);
     }
-    .sealed-card:hover { border-color: var(--accent); }
+    .sealed-card:hover {
+      background: radial-gradient(circle at top, #2c2c2c 0%, #1e1e1e 100%);
+    }
     .sealed-badge {
       font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--accent);
-      margin-bottom: 4px;
       font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--accent);
+      margin-bottom: 6px;
     }
     .sealed-title {
-      font-size: 1.15rem;
-      font-weight: 700;
-      margin-bottom: 10px;
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+      margin-bottom: 14px;
     }
 
-    /* Listener Revealed Card */
+    /* Listener: Revealed Card */
+    .card-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+    }
     .card-tag {
       font-size: 11px;
       font-weight: 700;
       color: var(--accent);
       text-transform: uppercase;
+      letter-spacing: 0.6px;
     }
     .reason-text {
       font-size: 13px;
-      line-height: 1.4;
-      margin: 6px 0;
+      line-height: 1.45;
+      color: #eaeaea;
+      margin: 8px 0;
       overflow-y: auto;
       flex: 1;
     }
+
+    /* Custom Thin Dark Scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 99px; }
+
+    /* Track Pill inside Revealed Card */
     .track-strip {
       display: flex;
       align-items: center;
-      gap: 8px;
-      background: #121212;
-      padding: 6px 8px;
+      gap: 10px;
+      background: rgba(0, 0, 0, 0.35);
+      padding: 7px 9px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: background-color 0.15s ease;
+    }
+    .track-strip:hover { background: rgba(0, 0, 0, 0.6); }
+
+    .art-wrap {
+      position: relative;
+      width: 40px;
+      height: 40px;
       border-radius: 6px;
-      margin-top: 6px;
-    }
-    .track-strip img {
-      width: 36px;
-      height: 36px;
-      border-radius: 4px;
-      object-fit: cover;
-      background: #282828;
+      overflow: hidden;
       flex-shrink: 0;
+      background: #282828;
     }
-    .track-strip-info {
-      min-width: 0;
-      flex: 1;
+    .art-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
     }
+    .art-play-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      color: var(--accent);
+      font-size: 14px;
+    }
+    .card:hover .art-play-overlay,
+    .card.active .art-play-overlay { opacity: 1; }
+
+    .track-strip-info { min-width: 0; flex: 1; }
     .track-strip-name {
-      font-size: 12px;
+      font-size: 12.5px;
       font-weight: 700;
+      color: var(--text-base);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     .track-strip-sub {
       font-size: 11px;
-      color: var(--muted);
+      color: var(--text-subdued);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
     /* Curator Card Inputs */
-    .curator-card { gap: 6px; }
+    .curator-card { gap: 7px; }
     .curator-row {
       display: flex;
       gap: 6px;
@@ -226,62 +334,83 @@
     .curator-card textarea {
       resize: none;
       flex: 1;
-      min-height: 44px;
+      min-height: 42px;
+      font-size: 12.5px;
     }
     .selected-pill {
-      font-size: 11px;
-      background: #121212;
-      padding: 5px 8px;
-      border-radius: 5px;
-      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(0, 0, 0, 0.35);
+      padding: 6px 10px;
+      border-radius: var(--radius-md);
+      color: var(--text-subdued);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
+    .selected-pill.has-track { color: var(--accent); }
 
-    /* Sticky Bottom Player */
+    /* Bottom Spotify Playback Bar */
     #player-bar {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 64px;
-      background: #181818;
-      border-top: 1px solid var(--border);
-      padding: 0 20px;
+      height: 72px;
+      background: var(--bg-base);
+      padding: 0 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      z-index: 50;
+      gap: 16px;
+      flex-shrink: 0;
     }
+
+    @media (max-width: 768px) {
+      #player-bar {
+        position: fixed;
+        bottom: 8px;
+        left: 8px;
+        right: 8px;
+        height: 62px;
+        background: #242424;
+        border-radius: var(--radius-md);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
+        padding: 0 12px;
+        z-index: 50;
+      }
+    }
+
     .player-meta {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
       min-width: 0;
     }
     .player-meta img {
-      width: 42px;
-      height: 42px;
-      border-radius: 4px;
+      width: 48px;
+      height: 48px;
+      border-radius: 6px;
       display: none;
+      object-fit: cover;
     }
+    @media (max-width: 768px) {
+      .player-meta img { width: 42px; height: 42px; }
+    }
+
     .player-controls {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 14px;
     }
-    #status-text {
+    #np-clock {
       font-size: 12px;
-      color: var(--muted);
+      color: var(--text-subdued);
+      font-variant-numeric: tabular-nums;
     }
 
-    /* Simple Modal for Spotify Track Search */
+    /* Search Modal */
     .modal-backdrop {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.78);
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(4px);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -289,86 +418,86 @@
       z-index: 100;
     }
     .modal {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
+      background: var(--bg-elevated);
+      border-radius: var(--radius-lg);
       width: min(440px, 100%);
-      padding: 16px;
+      padding: 18px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 12px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
     }
     .search-results {
-      max-height: 260px;
+      max-height: 280px;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 4px;
     }
     .search-item {
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 6px;
-      border-radius: 6px;
-      background: #121212;
+      padding: 7px 8px;
+      border-radius: var(--radius-md);
       cursor: pointer;
+      transition: background-color 0.12s ease;
     }
-    .search-item:hover { background: var(--surface-alt); }
-    .search-item img { width: 38px; height: 38px; border-radius: 4px; }
+    .search-item:hover { background: var(--bg-highlight); }
+    .search-item img { width: 40px; height: 40px; border-radius: 4px; object-fit: cover; }
   </style>
 </head>
 <body>
 
-  <header>
-    <div class="header-left">
-      <h1 id="page-title">8-Track Mystery Box</h1>
-      <p id="page-subtitle">Curate 8 reasons & timestamps to convince a friend.</p>
-    </div>
+  <div class="app-shell">
+    <header>
+      <div class="header-left">
+        <h1 id="page-title">8-Track Mystery Box</h1>
+        <p id="page-subtitle">Curate 8 reasons & timestamps to convince a friend.</p>
+      </div>
 
-    <div class="header-actions">
-      <button id="login-btn">Log In with Spotify</button>
-      <button id="share-btn" class="hidden">Copy Share Link</button>
-      <button id="download-btn" class="secondary hidden">Save .TXT</button>
-      <button id="new-box-btn" class="secondary hidden">Create New Box</button>
-    </div>
-  </header>
+      <div class="header-actions">
+        <button id="login-btn">Log In with Spotify</button>
+        <button id="share-btn" class="hidden">Copy Share Link</button>
+        <button id="download-btn" class="ghost hidden">Save .TXT</button>
+        <button id="new-box-btn" class="ghost hidden">Create New Box</button>
+      </div>
+    </header>
 
-  <main>
-    <!-- Curator-only box title input -->
+    <!-- Curator-only box subject input -->
     <div id="curator-bar" class="curator-meta hidden">
       <input id="box-subject" type="text" placeholder="Why you need to listen to... (e.g. Jeff Buckley)" />
       <span id="status-text"></span>
     </div>
 
-    <!-- 8-Slot Grid (used for both Curator and Listener modes) -->
+    <!-- 8-Slot Grid -->
     <div id="grid" class="grid-8"></div>
-  </main>
+  </div>
 
-  <!-- Sticky Mini Player -->
+  <!-- Spotify Bottom Playback Bar -->
   <div id="player-bar">
     <div class="player-meta">
       <img id="np-art" src="" alt="" />
       <div style="min-width:0;">
-        <div id="np-title" style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Not playing</div>
-        <div id="np-artist" style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Log in with Spotify Premium to stream</div>
+        <div id="np-title" style="font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Not playing</div>
+        <div id="np-artist" style="font-size:11.5px;color:var(--text-subdued);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Log in with Spotify Premium to stream</div>
       </div>
     </div>
     <div class="player-controls">
-      <span id="np-clock" style="font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;">0:00</span>
+      <span id="np-clock">0:00</span>
       <button id="play-pause-btn" disabled>Play</button>
     </div>
   </div>
 
-  <!-- Track Search Modal (Curator Mode) -->
+  <!-- Track Search Modal -->
   <div id="search-modal" class="modal-backdrop hidden">
     <div class="modal">
       <div style="display:flex;justify-content:space-between;align-items:center;">
-        <strong id="modal-slot-label">Pick Song for Slot #1</strong>
-        <button class="secondary" style="padding:4px 10px;" onclick="closeSearch()">Close</button>
+        <strong id="modal-slot-label" style="font-size:15px;">Pick Song for Slot #1</strong>
+        <button class="ghost" style="padding:5px 12px;font-size:12px;" onclick="closeSearch()">Close</button>
       </div>
-      <div style="display:flex;gap:6px;">
-        <input id="search-input" type="text" placeholder="Search song or artist..." />
+      <div style="display:flex;gap:8px;">
+        <input id="search-input" type="text" placeholder="What do you want to play?" />
         <button onclick="runSearch()">Search</button>
       </div>
       <div id="search-results" class="search-results"></div>
@@ -390,11 +519,8 @@
     let currentPositionMs = 0;
     let activeSlot = null;
     let searchTargetSlot = 0;
-
-    // Mode: 'curator' or 'listener'
     let mode = 'curator';
 
-    // Box Data Structure (8 slots)
     let boxData = {
       subject: '',
       slots: Array.from({ length: 8 }, () => ({
@@ -407,7 +533,6 @@
       }))
     };
 
-    // Tracks which boxes the listener has clicked to reveal
     let revealed = Array(8).fill(false);
 
     // ====================================================
@@ -429,9 +554,7 @@
       return `${m}:${s}`;
     }
 
-    // UTF-8 safe Base64 encode/decode for shareable URLs
     function encodeBox(data) {
-      // Compact payload so URL stays short
       const compact = {
         s: data.subject,
         items: data.slots.map(x => [x.trackId, x.timeStr, x.reason])
@@ -508,7 +631,6 @@
 
       downloadBoxAsTxt('backup-box');
       localStorage.removeItem(STORAGE_KEY);
-      // Strip ?box= from URL without reloading page
       window.history.replaceState({}, document.title, window.location.pathname);
 
       boxData = {
@@ -535,7 +657,7 @@
 
       if (mode === 'listener') {
         titleEl.textContent = `Why you need to listen to ${boxData.subject}`;
-        subEl.textContent = 'Click any sealed box to reveal the reason and play the exact moment.';
+        subEl.textContent = 'Select a mystery box to reveal the reason and hear the exact moment.';
         curatorBar.classList.add('hidden');
         shareBtn.classList.add('hidden');
         downloadBtn.classList.remove('hidden');
@@ -562,12 +684,11 @@
         card.className = 'card' + (activeSlot === i ? ' active' : '');
 
         if (!revealed[i]) {
-          // SEALED MYSTERY STATE
           card.classList.add('sealed-card');
           card.innerHTML = `
             <div class="sealed-badge">Mystery Box</div>
             <div class="sealed-title">Reason ${i + 1}</div>
-            <button ${!slot.trackId ? 'disabled' : ''}>Reveal & Play</button>
+            <button ${!slot.trackId ? 'disabled' : ''}>▶ Reveal</button>
           `;
           card.onclick = () => {
             if (!slot.trackId) return;
@@ -576,15 +697,16 @@
             playSlot(i);
           };
         } else {
-          // REVEALED STATE
           card.innerHTML = `
-            <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div class="card-header-row">
               <span class="card-tag">Reason #${i + 1} · @ ${slot.timeStr || '0:00'}</span>
-              <button style="padding:4px 10px;font-size:11px;" onclick="playSlot(${i})">Play</button>
             </div>
             <div class="reason-text">${escapeHtml(slot.reason || 'Listen closely to this part.')}</div>
-            <div class="track-strip">
-              <img src="${slot.albumArt || ''}" alt="" />
+            <div class="track-strip" onclick="playSlot(${i})" title="Play from ${slot.timeStr || '0:00'}">
+              <div class="art-wrap">
+                <img src="${slot.albumArt || ''}" alt="" />
+                <div class="art-play-overlay">▶</div>
+              </div>
               <div class="track-strip-info">
                 <div class="track-strip-name">${escapeHtml(slot.trackName)}</div>
                 <div class="track-strip-sub">${escapeHtml(slot.artistName)}</div>
@@ -604,7 +726,8 @@
         const card = document.createElement('div');
         card.className = 'card curator-card' + (activeSlot === i ? ' active' : '');
 
-        const trackLabel = slot.trackId
+        const hasTrack = Boolean(slot.trackId);
+        const trackLabel = hasTrack
           ? `${slot.trackName} — ${slot.artistName}`
           : 'No song selected';
 
@@ -612,17 +735,17 @@
           <div class="curator-row" style="justify-content:space-between;">
             <span class="card-tag">Slot #${i + 1}</span>
             <div class="curator-row">
-              <button class="secondary" style="padding:3px 8px;font-size:11px;" onclick="openSearch(${i})">Find Song</button>
-              <button style="padding:3px 8px;font-size:11px;" onclick="playSlot(${i})" ${!slot.trackId ? 'disabled' : ''}>Test</button>
+              <button class="ghost" style="padding:4px 10px;font-size:11px;" onclick="openSearch(${i})">Find Song</button>
+              <button style="padding:4px 10px;font-size:11px;" onclick="playSlot(${i})" ${!hasTrack ? 'disabled' : ''}>▶ Test</button>
             </div>
           </div>
 
-          <div class="selected-pill" title="${escapeHtml(trackLabel)}">${escapeHtml(trackLabel)}</div>
+          <div class="selected-pill ${hasTrack ? 'has-track' : ''}" title="${escapeHtml(trackLabel)}">${escapeHtml(trackLabel)}</div>
 
           <div class="curator-row">
-            <input type="text" value="${escapeHtml(slot.timeStr)}" placeholder="mm:ss" style="width:68px;"
+            <input type="text" value="${escapeHtml(slot.timeStr)}" placeholder="mm:ss" style="width:66px;text-align:center;"
               onchange="updateSlotField(${i}, 'timeStr', this.value)" />
-            <button class="secondary" style="padding:5px 8px;font-size:11px;flex:1;"
+            <button class="ghost" style="padding:7px 10px;font-size:11px;flex:1;"
               onclick="grabCurrentTime(${i})" title="Copy current playback timestamp">
               Use Playing Time
             </button>
@@ -641,8 +764,7 @@
     }
 
     function grabCurrentTime(index) {
-      const formatted = msToTimeStr(currentPositionMs);
-      boxData.slots[index].timeStr = formatted;
+      boxData.slots[index].timeStr = msToTimeStr(currentPositionMs);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(boxData));
       renderCuratorGrid();
     }
@@ -654,14 +776,15 @@
 
     document.getElementById('share-btn').addEventListener('click', async () => {
       if (!boxData.subject.trim()) {
-        alert('Enter who/what this box is about in the top box first (e.g. "Radiohead").');
+        alert('Enter who/what this box is about in the top bar first (e.g. "Radiohead").');
         return;
       }
       const encoded = encodeBox(boxData);
       const shareUrl = `${window.location.origin}${window.location.pathname}?box=${encoded}`;
       try {
         await navigator.clipboard.writeText(shareUrl);
-        document.getElementById('status-text').textContent = 'Share link copied to clipboard!';
+        document.getElementById('status-text').textContent = '✓ Share link copied!';
+        setTimeout(() => { document.getElementById('status-text').textContent = ''; }, 3500);
       } catch {
         prompt('Copy this share link:', shareUrl);
       }
@@ -703,7 +826,7 @@
       if (!q || !token) return;
 
       const resultsEl = document.getElementById('search-results');
-      resultsEl.innerHTML = '<div style="font-size:12px;color:var(--muted);">Searching...</div>';
+      resultsEl.innerHTML = '<div style="font-size:12px;color:var(--text-subdued);padding:6px;">Searching...</div>';
 
       const res = await fetch(
         `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=8`,
@@ -722,7 +845,7 @@
           <img src="${img}" alt="" />
           <div style="min-width:0;flex:1;">
             <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(t.name)}</div>
-            <div style="font-size:11px;color:var(--muted);">${escapeHtml(artists)}</div>
+            <div style="font-size:11.5px;color:var(--text-subdued);">${escapeHtml(artists)}</div>
           </div>
         `;
         row.onclick = () => {
@@ -776,8 +899,6 @@
       activeSlot = index;
       mode === 'listener' ? renderListenerGrid() : renderCuratorGrid();
 
-      const startMs = timeStrToMs(slot.timeStr);
-
       await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
         method: 'PUT',
         headers: {
@@ -786,7 +907,7 @@
         },
         body: JSON.stringify({
           uris: [`spotify:track:${slot.trackId}`],
-          position_ms: startMs
+          position_ms: timeStrToMs(slot.timeStr)
         })
       });
     }
@@ -807,7 +928,6 @@
     }
 
     document.getElementById('login-btn').addEventListener('click', async () => {
-      // Preserve ?box= parameter across Spotify OAuth redirect
       const boxParam = new URLSearchParams(window.location.search).get('box');
       if (boxParam) sessionStorage.setItem('pending_box_param', boxParam);
 
@@ -858,7 +978,6 @@
         }
       }
 
-      // Load box from URL (?box=...) or fallback to saved local draft
       if (boxParam) {
         try {
           boxData = decodeBox(boxParam);
@@ -918,7 +1037,6 @@
 
       player.connect();
 
-      // Update live playback clock every second so "Use Playing Time" is accurate
       setInterval(async () => {
         if (!player) return;
         const state = await player.getCurrentState();
